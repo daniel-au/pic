@@ -13,7 +13,8 @@ public class Filter implements FileFilter {
       extension.equals(".NEF") || // Nikon Raw
       extension.equals(".jpg") ||
       extension.equals(".MOV") || // Nikon Video
-      extension.equals(".CR2")    // Canon Raw
+      extension.equals(".CR2") || // Canon Raw
+      extension.equals(".MP4")
     );
   }
 }
