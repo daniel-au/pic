@@ -24,9 +24,11 @@ public class Utils {
 			fileName.append("000");
 		} else if (index < 100) {
 			fileName.append("00");
-		} else {
+		} else if (index < 1000) {
 			fileName.append('0');
-		}
+		} else {
+            // no need to append anything - assumes 9,999 photos max
+        }
 		fileName.append(index);
 		fileName.append(extension);
 		return fileName.toString();
