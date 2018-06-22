@@ -5,15 +5,24 @@ import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.io.Console;
 import static java.nio.file.StandardCopyOption.*;
 
 public class Copy { 
   public static void main(String[] args) {
+    // prompt user for file containing photo numbers
+    Console console = System.console();
+    String input = console.readLine("What file contains the photo numbers to be copied? Please use the full filename including the extension. Input '.' if default file 'Good Ones.txt'\nFile Name: ");
+    String fileName = "Good Ones.txt";
+    if (!input.equals(".")) {
+      fileName = input;
+    }
+
     System.out.println("Beginning Copy");
-    File goodOnes = new File("Good Ones");
-    boolean created = goodOnes.mkdir();
+    File destinationFolder = new File(fileName.substring(0, fileName.length() - 4));
+    boolean created = destinationFolder.mkdir();
     if (created) {
-      System.out.println("Good Ones directory created");
+      System.out.println(destinationFolder + "directory created.");
     }
     File currentDirectory = new File(".");
 
@@ -22,7 +31,7 @@ public class Copy {
 
     // BufferedReader to read every line that contains the number of photo to be copied
     try {
-      BufferedReader goodOnesText = new BufferedReader(new FileReader("good ones.txt"));
+      BufferedReader goodOnesText = new BufferedReader(new FileReader(fileName));
 
       String currentLine;
       int photoNumber;
@@ -57,15 +66,15 @@ public class Copy {
           continue;
         }
         actualPhotoName = photo.getName();
-        Files.copy(Paths.get(actualPhotoName), Paths.get("Good Ones/" + actualPhotoName), REPLACE_EXISTING);
+        Files.copy(Paths.get(actualPhotoName), Paths.get(destinationFolder + "/" + actualPhotoName), REPLACE_EXISTING);
         System.out.println("Copied " + actualPhotoName);
         copiedCount++;
       }
     } catch (FileNotFoundException e) {
-      System.out.println("good ones.txt not found");
+      System.out.println("Input file not found");
       e.printStackTrace();
     } catch (IOException e) {
-      System.out.println("Error when reading line from good\\ ones.txt");
+      System.out.println("Error when reading line from input file");
       e.printStackTrace();
     } 
     System.out.println("Number of photos to be copied: " + numLines);
