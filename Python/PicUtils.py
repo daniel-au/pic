@@ -7,10 +7,14 @@ import sys
 import os
 import re
 import shutil
+import string
+import random
 from textwrap import dedent
+from pathlib import Path
 
 # list of extensions that match photos and videos
 extensionPattern = '\\.\\w+$'
+PREFIX_LENGTH = 6
 
 # Utility methods
 def createOneLineString(multiline):
@@ -49,6 +53,20 @@ def getPhotoFiles():
     files.sort()
     return files
 
+def create_random_prefix(photos):
+    """
+    Creates a random prefix of PREFIX_LENGTH characters long and ensures that no
+    photo begins with that prefix. Returns the prefix.
+    """
+    while True:
+        random_prefix = ''.join([random.choice(string.ascii_letters) for i in \
+                        range(0, PREFIX_LENGTH)])
+        for photo in photos:
+            if photo.startswith(random_prefix):
+                continue
+        break
+    return random_prefix
+
 def newFileName(originalFileName, newPrefix, index):
     """Returns the replacement fileName for the original file."""
     return '{0}_{1:04d}{2}'.format(
@@ -56,6 +74,13 @@ def newFileName(originalFileName, newPrefix, index):
         index,
         getExtension(originalFileName)
     )
+
+def rename_all_photos(prefix, index):
+    photos = getPhotoFiles()
+    i = 0
+    while i < len(photos):
+        os.rename(photos[i], newFileName(photos[i], prefix, index + i))
+        i += 1
 
 def copy():
     """
@@ -112,11 +137,17 @@ def rename():
     if newPrefix == '.':
         newPrefix = os.path.basename(os.path.abspath('.'))
         print('New prefix is {0}'.format(newPrefix))
+
     index = int(input('What number should the photos start at? '))
+
     photos = getPhotoFiles()
-    for i in range(len(photos)):
-        # TODO - check if new name for file is already a file, don't overwrite
-        os.rename(photos[i], newFileName(photos[i], newPrefix, index + i))
+
+    # rename to random prefix - prevents overwriting any file
+    random_prefix = create_random_prefix(photos)
+    rename_all_photos(random_prefix, index)
+
+    # rename to new prefix
+    rename_all_photos(newPrefix, index)
 
 def usage():
     """Prints usage message."""
