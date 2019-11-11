@@ -14,7 +14,10 @@ public class Filter implements FileFilter {
       extension.equals(".jpg") ||
       extension.equals(".MOV") || // Nikon Video
       extension.equals(".CR2") || // Canon Raw
-      extension.equals(".MP4")
+      extension.equals(".MP4") ||
+      extension.equals(".mp4") ||
+      extension.equals(".gif") ||
+      extension.equals(".png")
     );
   }
 }
