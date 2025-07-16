@@ -69,11 +69,20 @@ def create_random_prefix(photos):
 
 def newFileName(originalFileName, newPrefix, index):
     """Returns the replacement fileName for the original file."""
-    return '{0}_{1:04d}{2}'.format(
-        newPrefix,
-        index,
-        getExtension(originalFileName)
-    )
+    if newPrefix != "":
+        new_file_name =  '{0}_{1:04d}{2}'.format(
+            newPrefix,
+            index,
+            getExtension(originalFileName)
+        )
+    else:
+        new_file_name =  '{1:04d}{2}'.format(
+            newPrefix,
+            index,
+            getExtension(originalFileName)
+        )
+    return new_file_name
+
 
 def rename_all_photos(prefix, index):
     photos = getPhotoFiles()
