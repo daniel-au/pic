@@ -3,55 +3,55 @@
 # Copy assumes files are in the format 'Prefix_XXXX.YYY' where XXXX is the
 # number and YYY is the file extension.
 
-import sys
 import os
+import random
 import re
 import shutil
 import string
-import random
-from textwrap import dedent
-from pathlib import Path
+import sys
 
 # list of extensions that match photos and videos
-extensionPattern = '\\.\\w+$'
+extension_pattern = "\\.\\w+$"
 PREFIX_LENGTH = 6
 
-# Utility methods
-def createOneLineString(multiline):
-    return dedent(multiline).replace('\n', ' ').strip()
 
-def getPhotoNumber(fileName):
+def get_photo_number(filename):
     """Returns the photo number from the filename."""
-    numAndExtensionPattern = '_\\d+' + extensionPattern
-    startIndex = re.search(numAndExtensionPattern, fileName).start() + 1
-    endIndex = re.search(extensionPattern, fileName).start()
-    return int(fileName[startIndex:endIndex])
+    num_and_extension_pattern = "_\\d+" + extension_pattern
+    start_index = re.search(num_and_extension_pattern, filename).start() + 1
+    end_index = re.search(extension_pattern, filename).start()
+    return int(filename[start_index:end_index])
 
-def getExtension(fileName):
-    """Returns the filetype extension form the filename."""
-    extension = ''
-    matcher = re.search(extensionPattern, fileName)
+
+def get_extension(filename):
+    """Returns the filetype extension from the filename."""
+    extension = ""
+    matcher = re.search(extension_pattern, filename)
     if matcher:
         extension = matcher.group(0)
     return extension
 
-def getFileNameWithoutExtension(fileName):
+
+def get_filename_without_extension(filename):
     """Returns the filename without the extension."""
-    matcher = re.search(extensionPattern, fileName)
+    matcher = re.search(extension_pattern, filename)
     if matcher:
-        return fileName[:matcher.start()]
-    return fileName
+        return filename[: matcher.start()]
+    return filename
 
-def isPhotoOrVideo(fileName):
+
+def is_photo_or_video(filename):
     """Returns true if the file is a photo."""
-    photoExtensions = ['.JPG', '.NEF', '.jpg', '.jpeg', '.MOV', '.CR2', '.MP4']
-    return os.path.isfile(fileName) and getExtension(fileName) in photoExtensions
+    photo_extensions = [".JPG", ".NEF", ".jpg", ".jpeg", ".MOV", ".CR2", ".MP4"]
+    return os.path.isfile(filename) and get_extension(filename) in photo_extensions
 
-def getPhotoFiles():
+
+def get_photo_files():
     """Returns a sorted list of photos in the current directory."""
-    files = list(filter(isPhotoOrVideo, os.listdir()))
+    files = list(filter(is_photo_or_video, os.listdir()))
     files.sort()
     return files
+
 
 def create_random_prefix(photos):
     """
@@ -59,37 +59,34 @@ def create_random_prefix(photos):
     photo begins with that prefix. Returns the prefix.
     """
     while True:
-        random_prefix = ''.join([random.choice(string.ascii_letters) for i in \
-                        range(0, PREFIX_LENGTH)])
+        random_prefix = "".join(
+            [random.choice(string.ascii_letters) for i in range(0, PREFIX_LENGTH)]
+        )
         for photo in photos:
             if photo.startswith(random_prefix):
                 continue
         break
     return random_prefix
 
-def newFileName(originalFileName, newPrefix, index):
-    """Returns the replacement fileName for the original file."""
-    if newPrefix != "":
-        new_file_name =  '{0}_{1:04d}{2}'.format(
-            newPrefix,
-            index,
-            getExtension(originalFileName)
+
+def new_filename(original_filename, new_prefix, index):
+    """Returns the replacement filename for the original file."""
+    if new_prefix != "":
+        new_file_name = "{0}_{1:04d}{2}".format(
+            new_prefix, index, get_extension(original_filename)
         )
     else:
-        new_file_name =  '{1:04d}{2}'.format(
-            newPrefix,
-            index,
-            getExtension(originalFileName)
-        )
+        new_file_name = "{0:04d}{1}".format(index, get_extension(original_filename))
     return new_file_name
 
 
 def rename_all_photos(prefix, index):
-    photos = getPhotoFiles()
+    photos = get_photo_files()
     i = 0
     while i < len(photos):
-        os.rename(photos[i], newFileName(photos[i], prefix, index + i))
+        os.rename(photos[i], new_filename(photos[i], prefix, index + i))
         i += 1
+
 
 def copy():
     """
@@ -104,34 +101,38 @@ def copy():
     copied to the newly created directory.
     """
     # ask the user which file contains the photos to be copied
-    inputFile = input("""\nWhat file contains the photo numbers to be copied? Please use the full filename including the extension. Input \'.\' if default file \'Good Ones.txt\'\nFile Name:""")
-    if inputFile == '.':
-        inputFile = 'Good Ones.txt'
+    input_file = input(
+        "\nWhat file contains the photo numbers to be copied? Please use the full filename "
+        "including the extension. Input \'.\' if default file \'Good Ones.txt\'\nFile Name:"
+    )
+    if input_file == ".":
+        input_file = "Good Ones.txt"
 
     # create folder for copied files
-    folderName = getFileNameWithoutExtension(inputFile)
-    if os.path.exists(folderName):
-        print('{0} directory already exists.'.format(folderName))
-    else: 
-        os.makedirs(folderName)
-        print('{0} directory created.'.format(folderName))
+    folder_name = get_filename_without_extension(input_file)
+    if os.path.exists(folder_name):
+        print("{0} directory already exists.".format(folder_name))
+    else:
+        os.makedirs(folder_name)
+        print("{0} directory created.".format(folder_name))
 
-    copiedCount = 0
+    copied_count = 0
     # read in numbers and create a set
-    f = open(inputFile, 'r')
-    toCopy = set(int(line.strip()) for line in f.readlines())
+    f = open(input_file, "r")
+    to_copy = set(int(line.strip()) for line in f.readlines())
 
     # iterate through all pictures in the directory and copy the ones that are
     # in the set to be copied
-    photos = getPhotoFiles()
+    photos = get_photo_files()
     for photo in photos:
         # if number in file is in the set to be copied
-        if getPhotoNumber(photo) in toCopy:
-            shutil.copy2(photo, folderName)
-            print('Copied {0}.'.format(photo))
-            copiedCount += 1
-    print('Number of photos to be copied: {0}'.format(len(toCopy)))
-    print('Number of photos successfully copied {0}'.format(copiedCount))
+        if get_photo_number(photo) in to_copy:
+            shutil.copy2(photo, folder_name)
+            print("Copied {0}.".format(photo))
+            copied_count += 1
+    print("Number of photos to be copied: {0}".format(len(to_copy)))
+    print("Number of photos successfully copied {0}".format(copied_count))
+
 
 def rename():
     """
@@ -141,44 +142,53 @@ def rename():
     prefix and incrementally renames each photo and video to have the new
     prefix, an underscore, the index, and original extension.
     """
-    print('\nThis assumes there are fewer than 10,000 photos to rename')
-    newPrefix = input('What should the photos be renamed to? (Input \'.\' if it matches the current directory): ')
-    if newPrefix == '.':
-        newPrefix = os.path.basename(os.path.abspath('.'))
-        print('New prefix is {0}'.format(newPrefix))
+    print("\nThis assumes there are fewer than 10,000 photos to rename")
+    new_prefix = input(
+        "What should the photos be renamed to? (Input '.' if it matches the current directory): "
+    )
+    if new_prefix == ".":
+        new_prefix = os.path.basename(os.path.abspath("."))
+        print("New prefix is {0}".format(new_prefix))
 
-    index = int(input('What number should the photos start at? '))
+    index = int(input("What number should the photos start at? "))
 
-    photos = getPhotoFiles()
+    photos = get_photo_files()
 
     # rename to random prefix - prevents overwriting any file
     random_prefix = create_random_prefix(photos)
     rename_all_photos(random_prefix, index)
 
     # rename to new prefix
-    rename_all_photos(newPrefix, index)
+    rename_all_photos(new_prefix, index)
+
 
 def usage():
     """Prints usage message."""
-    usageMessage = """This program is used for your batch of photos. It takes in one command line argument - either \'rename\' or \'copy\' to rename a batch of photos or copy the ones enumerated in a text file. Example: \'$ python3 PicUtils.py copy\'"""
-    print(usageMessage)
+    usage_message = (
+        "This program is used for your batch of photos. It takes in one command line argument - "
+        "either \'rename\' or \'copy\' to rename a batch of photos or copy the ones enumerated in "
+        "a text file. Example: \'$ python3 PicUtils.py copy\'"
+    )
+    print(usage_message)
+
 
 def main():
-    numArgs = len(sys.argv)
-    if numArgs == 1:
-        print('Too few command line arguments.\n')
+    num_args = len(sys.argv)
+    if num_args == 1:
+        print("Too few command line arguments.\n")
         usage()
-    elif numArgs == 2:
-        if sys.argv[1] == 'rename':
+    elif num_args == 2:
+        if sys.argv[1] == "rename":
             rename()
-        elif sys.argv[1] == 'copy':
+        elif sys.argv[1] == "copy":
             copy()
         else:
-            print('Incorrect command line arguments')
+            print("Incorrect command line arguments")
             usage()
     else:
-        print('Too many command line arguments.')
+        print("Too many command line arguments.")
         usage()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
