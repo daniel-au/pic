@@ -3,3 +3,6 @@ Class/*
 
 # vim
 *.swp
+
+# rust
+rust/target
