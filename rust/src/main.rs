@@ -1,7 +1,20 @@
+use std::collections::HashSet;
 use std::env;
+use std::fs;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+/// Create the HashSet of image extensions
+fn _get_image_extensions() -> HashSet<String> {
+    let mut image_extensions: HashSet<String> = HashSet::new();
+    image_extensions.insert("gif".to_string());
+    image_extensions.insert("jpg".to_string());
+    image_extensions.insert("jpeg".to_string());
+    image_extensions.insert("mp4".to_string());
+    image_extensions.insert("nef".to_string());
+    image_extensions.insert("png".to_string());
+    image_extensions
+}
 
 /// read a line from stdin
 fn _read_input() -> String {
@@ -28,6 +41,35 @@ fn _get_new_prefix() -> String {
     new_prefix
 }
 
+/// Grabs all the images in the current directory, filters out the ones that aren't images
+///
+/// Sorts the files alphabetically
+fn get_images(img_extensions: HashSet<String>) -> Vec<String> {
+    let mut image_files: Vec<String> = Vec::new();
+    let entries: fs::ReadDir = fs::read_dir(".").unwrap();
+    for entry_result in entries {
+        let entry = entry_result.unwrap();
+        let entry_md: fs::Metadata = entry.metadata().unwrap();
+        if entry_md.is_dir() {
+            continue;
+        }
+        let filename: String = entry.file_name().into_string().unwrap();
+        let filename_path = Path::new(&filename);
+        let extension: String = filename_path
+            .extension()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        if img_extensions.contains(&extension.to_lowercase()) {
+            image_files.push(filename);
+        }
+    }
+    image_files.sort();
+    image_files
+}
+
+
 /// Renames all photo and video files in the current directory.
 ///
 /// Prompts the user for either the new photo title or a `.` to represent the current direction,
@@ -43,10 +85,12 @@ fn rename() {
     let starting_index: String = _read_input();
     println!(
         "Photos will be renamed with prefix: `{}` and starting index: `{}`",
-        new_prefix,
-        starting_index,
+        new_prefix, starting_index,
     );
     // grab all photo and video files in the current directory
+    let image_files: Vec<String> = get_images(_get_image_extensions());
+    dbg!(&image_files);
+
     // rename each file to a random prefix
     // rename each file to its final name
 }
