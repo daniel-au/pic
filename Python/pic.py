@@ -11,52 +11,54 @@ import string
 import sys
 
 # list of extensions that match photos and videos
-extension_pattern = "\\.\\w+$"
+EXTENSION_PATTERN = "\\.\\w+$"
+NUM_AND_EXTENSION_PATTERN = "_\\d+\\.\\w+$"
+PHOTO_EXTENSIONS = {".JPG", ".NEF", ".jpg", ".jpeg", ".MOV", ".CR2", ".MP4"}
 PREFIX_LENGTH = 6
 
 
 def get_photo_number(filename):
     """Returns the photo number from the filename."""
-    num_and_extension_pattern = "_\\d+" + extension_pattern
-    start_index = re.search(num_and_extension_pattern, filename).start() + 1
-    end_index = re.search(extension_pattern, filename).start()
+    # could probably just use os.path.splitext and then a simpler regex
+    start_index = re.search(NUM_AND_EXTENSION_PATTERN, filename).start() + 1
+    end_index = re.search(EXTENSION_PATTERN, filename).start()
     return int(filename[start_index:end_index])
 
 
 def get_extension(filename):
     """Returns the filetype extension from the filename."""
-    extension = ""
-    matcher = re.search(extension_pattern, filename)
-    if matcher:
-        extension = matcher.group(0)
+    _, extension = os.path.splitext(filename)
     return extension
 
 
 def get_filename_without_extension(filename):
     """Returns the filename without the extension."""
-    matcher = re.search(extension_pattern, filename)
-    if matcher:
-        return filename[: matcher.start()]
-    return filename
+    filename_prefix, _ = os.path.splitext(filename)
+    return filename_prefix
 
 
 def is_photo_or_video(filename):
     """Returns true if the file is a photo."""
-    photo_extensions = [".JPG", ".NEF", ".jpg", ".jpeg", ".MOV", ".CR2", ".MP4"]
-    return os.path.isfile(filename) and get_extension(filename) in photo_extensions
+    return os.path.isfile(filename) and get_extension(filename) in PHOTO_EXTENSIONS
 
 
 def get_photo_files():
     """Returns a sorted list of photos in the current directory."""
-    files = list(filter(is_photo_or_video, os.listdir()))
+    files = [
+        filename
+        for filename in os.listdir()
+        if is_photo_or_video(filename)
+    ]
     files.sort()
     return files
 
 
 def create_random_prefix(photos):
     """
-    Creates a random prefix of PREFIX_LENGTH characters long and ensures that no
-    photo begins with that prefix. Returns the prefix.
+    Creates an unused random prefix of PREFIX_LENGTH characters long
+
+    It creates a random prefix and checks to make sure no photos have the prefix. If a photo has
+    that prefix, it will generate another random prefix.
     """
     while True:
         random_prefix = "".join(
