@@ -11,9 +11,11 @@ const PREFIX_LENGTH: u32 = 6;
 /// Create the HashSet of image extensions
 fn _get_image_extensions() -> HashSet<String> {
     let mut image_extensions: HashSet<String> = HashSet::new();
+    image_extensions.insert("cr2".to_string());
     image_extensions.insert("gif".to_string());
     image_extensions.insert("jpg".to_string());
     image_extensions.insert("jpeg".to_string());
+    image_extensions.insert("mov".to_string());
     image_extensions.insert("mp4".to_string());
     image_extensions.insert("nef".to_string());
     image_extensions.insert("png".to_string());
@@ -114,7 +116,12 @@ fn rename_image(image_name: String, new_prefix: &str, index: u32) {
         panic!("Error: index out of range - greater than 9999.");
     }
     let extension: String = _get_file_extension(&image_name);
-    let new_image_name: String = format!("{}_{:04}.{}", new_prefix, index, extension);
+    let new_image_name: String;
+    if image_name == "" {
+        new_image_name = format!("{:04}.{}", index, extension);
+    } else {
+        new_image_name = format!("{}_{:04}.{}", new_prefix, index, extension);
+    }
     println!("Renaming {} to {}", image_name, new_image_name);
     match fs::rename(image_name, new_image_name) {
         Ok(_) => (),
