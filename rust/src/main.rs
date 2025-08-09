@@ -1,8 +1,8 @@
 use rand::distr::{Alphanumeric, SampleString};
 use std::collections::HashSet;
 use std::env;
-use std::fs;
-use std::io::{self, BufRead};
+use std::fs::{self, File};
+use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
 
@@ -181,8 +181,75 @@ fn rename() {
 
 /// Copies the images in the current directory.
 fn copy() {
-    println!("Placeholder - should be copying stuff!");
-    // TODO
+    println!("Which file contains the list of numbers to copy?");
+    let file_name = match _read_input() {
+        Ok(input) => {
+            if input == "." {
+                "Good Ones.txt".to_string()
+            } else {
+                input
+            }
+        }
+        Err(e) => panic!("Error: failed to read file name: {}", e),
+    };
+
+    // Create the "Good Ones" directory if it doesn't exist
+    let dest_dir = "Good Ones";
+    if let Err(e) = fs::create_dir_all(dest_dir) {
+        panic!("Error: failed to create directory '{}': {}", dest_dir, e);
+    }
+
+    // Read the file and process each line
+    let file = match File::open(&file_name) {
+        Ok(file) => file,
+        Err(e) => panic!("Error: failed to open file '{}': {}", file_name, e),
+    };
+
+    let reader = BufReader::new(file);
+    let image_extensions = _get_image_extensions();
+    let available_images = get_images(image_extensions);
+
+    for line_result in reader.lines() {
+        let line = match line_result {
+            Ok(line) => line.trim().to_string(),
+            Err(e) => panic!("Error: failed to read line from file: {}", e),
+        };
+
+        if line.is_empty() {
+            continue;
+        }
+
+        // Parse the line as a number (1-based index)
+        let file_number: usize = match line.parse() {
+            Ok(num) => {
+                if num == 0 {
+                    println!("Warning: skipping line '{}' - file numbers should start from 1", line);
+                    continue;
+                }
+                num - 1 // Convert to 0-based index
+            }
+            Err(_) => {
+                println!("Warning: skipping invalid line '{}'", line);
+                continue;
+            }
+        };
+
+        // Check if the file number is valid
+        if file_number >= available_images.len() {
+            println!("Warning: file number {} is out of range (only {} files available)", file_number + 1, available_images.len());
+            continue;
+        }
+
+        let source_file = &available_images[file_number];
+        let dest_path = format!("{}/{}", dest_dir, source_file);
+
+        println!("Copying {} to {}", source_file, dest_path);
+        if let Err(e) = fs::copy(source_file, dest_path) {
+            println!("Error: failed to copy '{}': {}", source_file, e);
+        }
+    }
+
+    println!("Copy operation completed!");
 }
 
 
