@@ -1,4 +1,5 @@
 use rand::distr::{Alphanumeric, SampleString};
+use regex::Regex;
 use std::collections::HashSet;
 use std::env;
 use std::fs::{self, File};
@@ -7,6 +8,7 @@ use std::path::Path;
 
 
 const PREFIX_LENGTH: u32 = 6;
+const FILE_NAME_REGEX_STR: &str = r"(?<prefix>.+)_(?<index>\d+)\.(?<extension>\w+)$";
 
 /// Create the HashSet of image extensions
 fn _get_image_extensions() -> HashSet<String> {
@@ -179,13 +181,23 @@ fn rename() {
 }
 
 
+/// given a filename, extract out the prefix, file number, and extension
+fn parse_filename(filename: &String) -> (String, u32, String) {
+    let re = Regex::new(FILE_NAME_REGEX_STR).unwrap();
+    let caps = re.captures(filename).unwrap();
+    let prefix = caps.get(1).unwrap().as_str().to_string();
+    let file_number = caps.get(2).unwrap().as_str().parse().unwrap();
+    let extension = caps.get(3).unwrap().as_str().to_string();
+    (prefix, file_number, extension)
+}
+
 /// Copies the images in the current directory.
 fn copy() {
     println!("Which file contains the list of numbers to copy?");
     let file_name = match _read_input() {
         Ok(input) => {
             if input == "." {
-                "Good Ones.txt".to_string()
+                String::from("Good Ones.txt")
             } else {
                 input
             }
@@ -195,7 +207,7 @@ fn copy() {
 
     // Create the "Good Ones" directory if it doesn't exist
     let dest_dir = "Good Ones";
-    if let Err(e) = fs::create_dir_all(dest_dir) {
+    if let Err(e) = fs::create_dir(dest_dir) {
         panic!("Error: failed to create directory '{}': {}", dest_dir, e);
     }
 
@@ -209,6 +221,8 @@ fn copy() {
     let image_extensions = _get_image_extensions();
     let available_images = get_images(image_extensions);
 
+    // Create a HashSet of the numbers in the file
+    let mut file_numbers: HashSet<u32> = HashSet::new();
     for line_result in reader.lines() {
         let line = match line_result {
             Ok(line) => line.trim().to_string(),
@@ -219,32 +233,31 @@ fn copy() {
             continue;
         }
 
-        // Parse the line as a number (1-based index)
-        let file_number: usize = match line.parse() {
-            Ok(num) => {
-                if num == 0 {
-                    println!("Warning: skipping line '{}' - file numbers should start from 1", line);
-                    continue;
-                }
-                num - 1 // Convert to 0-based index
-            }
+        // Parse the line as a number
+        let file_number: u32 = match line.parse::<u32>() {
+            Ok(num) => num,
             Err(_) => {
                 println!("Warning: skipping invalid line '{}'", line);
                 continue;
             }
         };
+        file_numbers.insert(file_number);
+    }
 
-        // Check if the file number is valid
-        if file_number >= available_images.len() {
-            println!("Warning: file number {} is out of range (only {} files available)", file_number + 1, available_images.len());
+    // Iterate through the available images and copy the ones that should be copied
+    for image in available_images {
+        // iterate through each available image and see if it should be copied
+        // easier to do this way rather than constructing the full image name from the index
+        let (prefix, index, extension) = parse_filename(&image);
+        if !file_numbers.contains(&index) {
             continue;
         }
+        let source_file = format!("{}_{:04}.{}", prefix, index, extension);
 
-        let source_file = &available_images[file_number];
-        let dest_path = format!("{}/{}", dest_dir, source_file);
+        let dest_path = format!("{}/{}", dest_dir, &source_file);
+        println!("Copying {} to {}", &source_file, &dest_path);
 
-        println!("Copying {} to {}", source_file, dest_path);
-        if let Err(e) = fs::copy(source_file, dest_path) {
+        if let Err(e) = fs::copy(&source_file, dest_path) {
             println!("Error: failed to copy '{}': {}", source_file, e);
         }
     }
