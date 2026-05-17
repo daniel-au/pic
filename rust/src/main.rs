@@ -5,37 +5,24 @@ use std::env;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
+use std::sync::LazyLock;
 
 const PREFIX_LENGTH: u32 = 6;
-const FILE_NAME_REGEX_STR: &str = r"(?<prefix>.+)_(?<index>\d+)\.(?<extension>\w+)$";
+
+static FILE_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?<prefix>.+)_(?<index>\d+)\.(?<extension>\w+)$").unwrap()
+});
 
 /// Create the HashSet of image extensions
 fn _get_image_extensions() -> HashSet<String> {
-    let mut image_extensions: HashSet<String> = HashSet::new();
-    image_extensions.insert("cr2".to_string());
-    image_extensions.insert("gif".to_string());
-    image_extensions.insert("jpg".to_string());
-    image_extensions.insert("jpeg".to_string());
-    image_extensions.insert("mov".to_string());
-    image_extensions.insert("mp4".to_string());
-    image_extensions.insert("nef".to_string());
-    image_extensions.insert("png".to_string());
-    image_extensions
+    HashSet::from(["cr2", "gif", "jpg", "jpeg", "mov", "mp4", "nef", "png"].map(String::from))
 }
 
 /// read a line from stdin, strips the leading and trailing whitespace
 fn _read_input() -> Result<String, io::Error> {
     let mut buffer = String::new();
-    let stdin = io::stdin();
-    let read_res: io::Result<usize>;
-    {
-        let mut handle = stdin.lock();
-        read_res = handle.read_line(&mut buffer);
-    }
-    match read_res {
-        Ok(_) => Ok(buffer.trim().to_string()),
-        Err(e) => Err(e),
-    }
+    io::stdin().lock().read_line(&mut buffer)?;
+    Ok(buffer.trim().to_string())
 }
 
 /// prompts the user for a new prefix, and returns it
@@ -52,8 +39,7 @@ fn _get_new_prefix() -> String {
             Ok(cwd) => cwd,
             Err(e) => panic!("Error: failed to get current directory: {}", e),
         };
-        let full_path = Path::new(&cwd);
-        let file_name = match full_path.file_name() {
+        let file_name = match cwd.file_name() {
             Some(file_name) => file_name,
             None => panic!("Error: failed to get the top folder from the current directory path."),
         };
@@ -66,19 +52,17 @@ fn _get_new_prefix() -> String {
 }
 
 /// Returns the file extension
-fn _get_file_extension(filename: &String) -> String {
-    let filename_path = Path::new(filename);
-    let extension: String = match filename_path.extension() {
-        Some(extension) => extension.to_str().unwrap().to_string(),
+fn _get_file_extension(filename: &str) -> String {
+    match Path::new(filename).extension() {
+        Some(ext) => ext.to_str().unwrap_or("").to_string(),
         None => String::new(),
-    };
-    extension
+    }
 }
 
 /// Grabs all the images in the current directory, filters out the ones that aren't images
 ///
 /// Sorts the files alphabetically
-fn _get_images(img_extensions: HashSet<String>) -> Vec<String> {
+fn _get_images(img_extensions: &HashSet<String>) -> Vec<String> {
     let mut image_files: Vec<String> = Vec::new();
     let entries: fs::ReadDir = match fs::read_dir(".") {
         Ok(entries) => entries,
@@ -107,13 +91,13 @@ fn _get_images(img_extensions: HashSet<String>) -> Vec<String> {
 }
 
 /// Renames a single image to a new prefix and index
-fn rename_image(image_name: String, new_prefix: &str, index: u32) {
+fn _rename_image(image_name: &str, new_prefix: &str, index: u32) {
     if index > 9999 {
         panic!("Error: index out of range - greater than 9999.");
     }
-    let extension: String = _get_file_extension(&image_name);
+    let extension = _get_file_extension(image_name);
     let new_image_name: String;
-    if image_name == "" {
+    if new_prefix == "" {
         new_image_name = format!("{:04}.{}", index, extension);
     } else {
         new_image_name = format!("{}_{:04}.{}", new_prefix, index, extension);
@@ -126,19 +110,17 @@ fn rename_image(image_name: String, new_prefix: &str, index: u32) {
 }
 
 /// Renames all given photos to a new prefix and index
-fn _rename_all_photos(image_files: Vec<String>, new_prefix: &String, starting_index: &String) {
+fn _rename_all_photos(image_files: Vec<String>, new_prefix: &str, starting_index: &str) {
     let mut index: u32 = starting_index.parse().unwrap();
     for image in image_files {
-        rename_image(image, &new_prefix, index);
+        _rename_image(&image, new_prefix, index);
         index += 1;
     }
 }
 
 /// Generates a random prefix of a given length
 fn _generate_random_prefix(length: u32) -> String {
-    let length_us = usize::try_from(length).unwrap();
-    let rand_prefix: String = Alphanumeric.sample_string(&mut rand::rng(), length_us);
-    rand_prefix
+    Alphanumeric.sample_string(&mut rand::rng(), length as usize)
 }
 
 /// Renames all photo and video files in the current directory.
@@ -159,25 +141,22 @@ fn rename() {
         "Photos will be renamed with prefix: `{}` and starting index: `{}`",
         new_prefix, starting_index,
     );
-    // grab all photo and video files in the current directory
-    let mut image_files: Vec<String> = _get_images(_get_image_extensions());
-    dbg!(&image_files);
-
+    let image_extensions = _get_image_extensions();
+    let mut image_files: Vec<String> = _get_images(&image_extensions);
     // rename each file to a random prefix. This ensures that if we keep the same prefix and just
     // update the numbers, nothing will be overwritten
     let rand_prefix: String = _generate_random_prefix(PREFIX_LENGTH);
     _rename_all_photos(image_files, &rand_prefix, &starting_index);
-    image_files = _get_images(_get_image_extensions());
+    image_files = _get_images(&image_extensions);
     _rename_all_photos(image_files, &new_prefix, &starting_index);
 }
 
 /// given a filename, extract out the prefix, file number, and extension
-fn _parse_filename(filename: &String) -> (String, u32, String) {
-    let re = Regex::new(FILE_NAME_REGEX_STR).unwrap();
-    let caps = re.captures(filename).unwrap();
-    let prefix = caps.get(1).unwrap().as_str().to_string();
-    let file_number = caps.get(2).unwrap().as_str().parse().unwrap();
-    let extension = caps.get(3).unwrap().as_str().to_string();
+fn _parse_filename(filename: &str) -> (String, u32, String) {
+    let caps = FILE_NAME_REGEX.captures(filename).unwrap();
+    let prefix = caps["prefix"].to_string();
+    let file_number = caps["index"].parse().unwrap();
+    let extension = caps["extension"].to_string();
     (prefix, file_number, extension)
 }
 
@@ -197,8 +176,10 @@ fn copy() {
 
     // Create the "Good Ones" directory if it doesn't exist
     let dest_dir = "Good Ones";
-    if let Err(e) = fs::create_dir(dest_dir) {
-        panic!("Error: failed to create directory '{}': {}", dest_dir, e);
+    if !Path::new(dest_dir).exists() {
+        if let Err(e) = fs::create_dir_all(dest_dir) {
+            panic!("Error: failed to create directory '{}': {}", dest_dir, e);
+        }
     }
 
     // Read the file and process each line
@@ -209,7 +190,7 @@ fn copy() {
 
     let reader = BufReader::new(file);
     let image_extensions = _get_image_extensions();
-    let available_images = _get_images(image_extensions);
+    let available_images = _get_images(&image_extensions);
 
     // Create a HashSet of the numbers in the file
     let mut file_numbers: HashSet<u32> = HashSet::new();
@@ -235,20 +216,16 @@ fn copy() {
     }
 
     // Iterate through the available images and copy the ones that should be copied
+    // Easier to do this way rather than constructing the full image name from the index
     for image in available_images {
-        // iterate through each available image and see if it should be copied
-        // easier to do this way rather than constructing the full image name from the index
-        let (prefix, index, extension) = _parse_filename(&image);
+        let (_, index, _) = _parse_filename(&image);
         if !file_numbers.contains(&index) {
             continue;
         }
-        let source_file = format!("{}_{:04}.{}", prefix, index, extension);
-
-        let dest_path = format!("{}/{}", dest_dir, &source_file);
-        println!("Copying {} to {}", &source_file, &dest_path);
-
-        if let Err(e) = fs::copy(&source_file, dest_path) {
-            println!("Error: failed to copy '{}': {}", source_file, e);
+        let dest_path = format!("{}/{}", dest_dir, &image);
+        println!("Copying {} to {}", &image, &dest_path);
+        if let Err(e) = fs::copy(&image, &dest_path) {
+            println!("Error: failed to copy '{}': {}", image, e);
         }
     }
 
@@ -257,12 +234,11 @@ fn copy() {
 
 // Prints a usage message
 fn _usage() {
-    let usage_message = String::from(
+    println!(
         "This program is used for your batch of photos. It takes in one command line argument - \
         either `rename` or `copy` to rename a batch of photos or copy the ones enumerated in a \
-        text file. Example: `$ ./pic copy`",
+        text file. Example: `$ ./pic copy`"
     );
-    println!("{}", &usage_message);
 }
 
 /// read command line args and execute the correct function
@@ -270,6 +246,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
         println!("Too few command line arguments.");
+        _usage();
     } else if args.len() == 2 {
         if args[1] == "rename" {
             rename()
@@ -281,5 +258,6 @@ fn main() {
         }
     } else {
         println!("Too many command line arguments.");
+        _usage();
     }
 }
